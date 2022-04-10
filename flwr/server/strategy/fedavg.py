@@ -196,10 +196,7 @@ class FedAvg(Strategy):
             (parameters_to_weights(fit_res.parameters), fit_res.num_examples)
             for client, fit_res in results
         ]
-
         # Howard
-        print(str(weights_results)==str(weights_results))
-        print(len(str(weights_results)))
 
         # encode
         weights_results_bytes = str(weights_results).encode("ascii")
@@ -216,12 +213,11 @@ class FedAvg(Strategy):
             # call contract to get global param
             
         # decode when aggregate state is True
-        re_weights_results_bytes = base64.b64decode(base64_bytes)
+        re_base64_bytes = base64_string.encode("ascii")
+        re_weights_results_bytes = base64.b64decode(re_base64_bytes)
         re_weights_results_string = re_weights_results_bytes.decode("ascii")
-        
-        print(str(weights_results)==re_weights_results_string)
-        print(len(re_weights_results_string))
-        
+        print(list(re_weights_results_string))
+        # return aggregate(list(re_weights_results_string))
         return aggregate(weights_results)
 
     def aggregate_evaluate(

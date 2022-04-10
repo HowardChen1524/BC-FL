@@ -92,6 +92,7 @@ def _init_defaults(
         client_manager = SimpleClientManager()
         if strategy is None:
             strategy = FedAvg()
+            # strategy = FedAvg_BC()
         server = Server(client_manager=client_manager, strategy=strategy)
 
     # Set default config values

@@ -72,6 +72,8 @@ class Server:
         # Initialize parameters
         log(INFO, "Getting initial parameters")
         self.weights = self._get_initial_parameters()
+
+        # unuseful, res return None
         log(INFO, "Evaluating initial parameters")
         res = self.strategy.evaluate(weights=self.weights)
         if res is not None:
@@ -191,9 +193,11 @@ class Server:
             len(results),
             len(failures),
         )
-
+        
         # Aggregate training results
         weights_aggregated = self.strategy.aggregate_fit(rnd, results, failures)
+
+
         return weights_aggregated, (results, failures)
 
     def disconnect_all_clients(self) -> None:
