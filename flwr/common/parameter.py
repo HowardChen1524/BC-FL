@@ -20,8 +20,7 @@ from typing import cast
 
 import numpy as np
 
-from .typing import Parameters, Weights
-
+from .typing import Parameters, Weights, FitRes
 
 def weights_to_parameters(weights: Weights) -> Parameters:
     """Convert NumPy weights to parameters object."""

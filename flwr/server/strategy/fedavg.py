@@ -39,8 +39,9 @@ from .strategy import Strategy
 # modify --Howard
 from flwr.common.logger import log
 from logging import DEBUG, INFO
-import time
 import base64
+import numpy as np
+import time 
 
 class FedAvg(Strategy):
     """Configurable FedAvg strategy implementation."""
@@ -191,34 +192,22 @@ class FedAvg(Strategy):
         # Do not aggregate if there are failures and failures are not accepted
         if not self.accept_failures and failures:
             return None
+
         # Convert results
         weights_results = [
             (parameters_to_weights(fit_res.parameters), fit_res.num_examples)
             for client, fit_res in results
         ]
-        # Howard
 
-        # encode
-        weights_results_bytes = str(weights_results).encode("ascii")
-        base64_bytes = base64.b64encode(weights_results_bytes)
-        base64_string = base64_bytes.decode("ascii")
-            
-        # send contract to set param
-
-        # call contract to get aggregate_state_on_chain
-
-        # timeout = 86400
-        # mustend = time.time() + timeout 
-        # while !aggregate_state_on_chain or mustend < timeout: # condition maybe aggregate state     
-            # call contract to get global param
-            
-        # decode when aggregate state is True
-        re_base64_bytes = base64_string.encode("ascii")
-        re_weights_results_bytes = base64.b64decode(re_base64_bytes)
-        re_weights_results_string = re_weights_results_bytes.decode("ascii")
-        print(list(re_weights_results_string))
-        # return aggregate(list(re_weights_results_string))
-        return aggregate(weights_results)
+        print("-----hello-----")
+        start = time.time()
+        
+        encode_weights_results = encode_parameters(weights_results)
+        decode_weights_results = decode_parameter(encode_weights_results)
+        
+        end = time.time()
+        print("cost {:.5f} sec".format(end-start))
+        return aggregate(decode_weights_results)
 
     def aggregate_evaluate(
         self,
@@ -226,6 +215,7 @@ class FedAvg(Strategy):
         results: List[Tuple[ClientProxy, EvaluateRes]],
         failures: List[BaseException],
     ) -> Optional[float]:
+
         """Aggregate evaluation losses using weighted average."""
         if not results:
             return None
@@ -238,3 +228,54 @@ class FedAvg(Strategy):
                 for _, evaluate_res in results
             ]
         )
+
+def encode_parameters(results: List[Tuple[FitRes,ClientProxy]]) -> str:
+    # encode
+    en_result = ""
+    num_clients = len(results)
+    en_result = en_result + str(num_clients) + '[nclient]'
+    for i in range(num_clients):
+        clientProxy = results[i][1] 
+        num_layers = len(results[i][0])
+        en_result = en_result + str(clientProxy) + ',' + str(num_layers) + '[proxy&nlayer]'
+        for j in range(num_layers):
+            if len(results[0][0][j].shape)==1:
+                shape = str(results[0][0][j].shape[0])
+            else:
+                shape = str(results[0][0][j].shape[0]) + ',' + str(results[0][0][j].shape[1])
+            weight_base64_str = base64.b64encode(results[0][0][j]).decode("utf-8")
+            layer_info = shape + '[shape]' + weight_base64_str
+            if j != num_layers-1:
+                en_result = en_result + layer_info + '[layer_info]'
+            else:
+                en_result = en_result + layer_info
+        if i !=  (num_clients-1):
+            en_result = en_result + '[client_info]'
+    en_result_bytes = en_result.encode('utf-8')    
+    en_result_base64_str = base64.b64encode(en_result_bytes).decode("utf-8")
+
+    return en_result_base64_str
+
+def decode_parameter(parameter: str) -> List[Tuple[FitRes,ClientProxy]]:
+    # decode
+    final_result_list = list()
+    de_result = base64.b64decode(parameter.encode("utf-8")).decode("utf-8")
+    client_num, de_result = de_result.split("[nclient]")
+    client = de_result.split("[client_info]")
+    for i in range(int(client_num)):
+        weight_result_list = list()
+        p, l = client[i].split("[proxy&nlayer]")
+        proxy, layer_num = p.split(',')
+        all_layer_info = l.split("[layer_info]")
+        for j in range(int(layer_num)):
+            shape, weight_base64_str = all_layer_info[j].split("[shape]")
+            weight = np.frombuffer(base64.decodebytes(weight_base64_str.encode("utf-8")), dtype=np.float32)    
+            if "," in shape:
+                row, col = shape.split(',')
+                shape = (int(row),int(col))
+            else:    
+                shape = (int(shape),)
+            weight = weight.reshape(shape)
+            weight_result_list.append(weight)
+        final_result_list.append((weight_result_list,int(proxy)))
+    return final_result_list

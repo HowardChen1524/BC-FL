@@ -194,9 +194,11 @@ class Server:
             len(failures),
         )
         
+        # set weight
+        # wait aggregate result
+
         # Aggregate training results
         weights_aggregated = self.strategy.aggregate_fit(rnd, results, failures)
-
 
         return weights_aggregated, (results, failures)
 
