@@ -19,6 +19,8 @@ import concurrent.futures
 import timeit
 from logging import DEBUG, INFO
 from typing import List, Optional, Tuple
+from unittest import result
+from wsgiref.validate import validator
 
 from flwr.common import (
     Disconnect,
@@ -31,10 +33,12 @@ from flwr.common import (
     parameters_to_weights,
 )
 from flwr.common.logger import log
+from flwr.common.parameter import decode_weights, encode_weights
 from flwr.server.client_manager import ClientManager
 from flwr.server.client_proxy import ClientProxy
 from flwr.server.history import History
 from flwr.server.strategy import FedAvg, Strategy
+from flwr.server.validator import Validator
 
 FitResultsAndFailures = Tuple[List[Tuple[ClientProxy, FitRes]], List[BaseException]]
 EvaluateResultsAndFailures = Tuple[
@@ -54,11 +58,13 @@ class Server:
     """Flower server."""
 
     def __init__(
-        self, client_manager: ClientManager, strategy: Optional[Strategy] = None
+        self, client_manager: ClientManager, strategy: Optional[Strategy] = None, actor: Actor = None, 
     ) -> None:
         self._client_manager: ClientManager = client_manager
         self.weights: Weights = []
         self.strategy: Strategy = set_strategy(strategy)
+        self.actor: Actor = actor
+
 
     def client_manager(self) -> ClientManager:
         """Return ClientManager."""
@@ -92,11 +98,35 @@ class Server:
 
         for current_round in range(1, num_rounds + 1):
             # Train model and replace previous global model
-            res_fit = self.fit_round(rnd=current_round)
-            if res_fit:
-                weights_prime, _ = res_fit
-                if weights_prime:
-                    self.weights = weights_prime
+            # 1 -> Validator
+            if self.actor == 1: #H
+                validator: Validator = Validator()
+                # get clients weights
+                _, (results, _) = self.fit_round(rnd=current_round)
+                if results:
+                    # validate clients weights and score.
+
+                    # encode client_weights
+                    # Convert results --> this code is from fedavg.py
+                    weights_results = [
+                        (parameters_to_weights(fit_res.parameters), fit_res.num_examples)
+                        for _, fit_res in results
+                    ]
+                    encoded_client_weights = encode_weights(weights_results)
+                    # upload valid clients weights to blockchain.
+                    validator.set_client_weights(encoded_client_weights)
+                    # wait for Aggregators to aggregate.
+                    encoded_aggregated_weights = validator.listen_aggregate_finish_event()
+                    # decode aggregated weights
+                    aggregated_weights = decode_weights(encoded_aggregated_weights)
+                    if aggregated_weights:
+                        self.weights = aggregated_weights
+            else:
+                res_fit = self.fit_round(rnd=current_round)
+                if res_fit:
+                    weights_prime, _ = res_fit
+                    if weights_prime:
+                        self.weights = weights_prime
 
             # Evaluate model using strategy implementation
             res_cen = self.strategy.evaluate(weights=self.weights)
@@ -193,12 +223,12 @@ class Server:
             len(results),
             len(failures),
         )
-        
-        # set weight
-        # wait aggregate result
-
-        # Aggregate training results
-        weights_aggregated = self.strategy.aggregate_fit(rnd, results, failures)
+        # 1 -> Validator
+        if self.actor == 1: #H
+            weights_aggregated = None
+        else:
+            # Aggregate training results
+            weights_aggregated = self.strategy.aggregate_fit(rnd, results, failures)
 
         return weights_aggregated, (results, failures)
 

@@ -92,7 +92,6 @@ def _init_defaults(
         client_manager = SimpleClientManager()
         if strategy is None:
             strategy = FedAvg()
-            # strategy = FedAvg_BC()
         server = Server(client_manager=client_manager, strategy=strategy)
 
     # Set default config values
@@ -100,6 +99,8 @@ def _init_defaults(
         config = {}
     if "num_rounds" not in config:
         config["num_rounds"] = 1
+    if "actor" not in config: #H
+        config["actor"] = 0
 
     return server, config
 

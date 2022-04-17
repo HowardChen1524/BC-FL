@@ -14,7 +14,9 @@
 # ==============================================================================
 """Flower utilities shared between server and client."""
 
-
+from .parameter import parametersList_to_fitResList as parametersList_to_fitResList
+from .parameter import decode_weights as decode_weights
+from .parameter import encode_weights as encode_weights
 from .parameter import bytes_to_ndarray as bytes_to_ndarray
 from .parameter import ndarray_to_bytes as ndarray_to_bytes
 from .parameter import parameters_to_weights as parameters_to_weights
@@ -50,4 +52,7 @@ __all__ = [
     "Scalar",
     "Weights",
     "weights_to_parameters",
+    "encode_weights",
+    "decode_weights",
+    "parametersList_to_fitResList"
 ]
