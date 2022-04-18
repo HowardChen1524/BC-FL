@@ -58,20 +58,18 @@ class Server:
     """Flower server."""
 
     def __init__(
-        self, client_manager: ClientManager, strategy: Optional[Strategy] = None, actor: Actor = None, 
+        self, client_manager: ClientManager, strategy: Optional[Strategy] = None
     ) -> None:
         self._client_manager: ClientManager = client_manager
         self.weights: Weights = []
         self.strategy: Strategy = set_strategy(strategy)
-        self.actor: Actor = actor
-
 
     def client_manager(self) -> ClientManager:
         """Return ClientManager."""
         return self._client_manager
 
     # pylint: disable=too-many-locals
-    def fit(self, num_rounds: int) -> History:
+    def fit(self, num_rounds: int, actor: int, account: str, private_key: str, provider_url: str, contract_address: str) -> History:
         """Run federated averaging for a number of rounds."""
         history = History()
 
@@ -99,8 +97,8 @@ class Server:
         for current_round in range(1, num_rounds + 1):
             # Train model and replace previous global model
             # 1 -> Validator
-            if self.actor == 1: #H
-                validator: Validator = Validator()
+            if actor == 1: #H
+                validator = Validator(account, private_key, provider_url, contract_address, self.strategy)
                 # get clients weights
                 _, (results, _) = self.fit_round(rnd=current_round)
                 if results:

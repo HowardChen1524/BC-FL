@@ -17,6 +17,7 @@
 
 from logging import INFO
 from typing import Dict, Optional, Tuple
+from wsgiref.validate import validator
 
 from flwr.common import GRPC_MAX_MESSAGE_LENGTH
 from flwr.common.logger import log
@@ -24,6 +25,8 @@ from flwr.server.client_manager import SimpleClientManager
 from flwr.server.grpc_server.grpc_server import start_insecure_grpc_server
 from flwr.server.server import Server
 from flwr.server.strategy import FedAvg, Strategy
+from flwr.server.validator import Validator
+from flwr.blockchain.node import start_node, check_node_config
 
 DEFAULT_SERVER_ADDRESS = "[::]:8080"
 
@@ -34,6 +37,7 @@ def start_server(
     config: Optional[Dict[str, int]] = None,
     strategy: Optional[Strategy] = None,
     grpc_max_message_length: int = GRPC_MAX_MESSAGE_LENGTH,
+    wallet: Optional[Dict[str, str]] = None
 ) -> None:
     """Start a Flower server using the gRPC transport layer.
 
@@ -62,7 +66,11 @@ def start_server(
     Returns:
         None.
     """
+
     initialized_server, initialized_config = _init_defaults(server, config, strategy)
+    # Start Blockchain node --> Validator
+    if config["actor"] == 1:
+        start_node(config)
 
     # Start gRPC server
     grpc_server = start_insecure_grpc_server(
@@ -99,15 +107,24 @@ def _init_defaults(
         config = {}
     if "num_rounds" not in config:
         config["num_rounds"] = 1
-    if "actor" not in config: #H
-        config["actor"] = 0
-
+    if "actor" in config: #H
+        config["mode"] = "BCFL"
+        check_node_config(config)
+    else:
+        config["mode"] = "Normal"
     return server, config
 
 
 def _fl(server: Server, config: Dict[str, int]) -> None:
     # Fit model
-    hist = server.fit(num_rounds=config["num_rounds"])
+    if config["mode"] == "BCFL":
+        hist = server.fit(
+            num_rounds=config["num_rounds"], actor=config["actor"],
+            account=config["account"], private_key=config["private_key"],
+            provider_url=config["provider_url"], contract_address=config["contract_address"]
+        )
+    else:    
+        hist = server.fit(num_rounds=config["num_rounds"])
     log(INFO, "app_fit: losses_distributed %s", str(hist.losses_distributed))
     log(INFO, "app_fit: accuracies_distributed %s", str(hist.accuracies_distributed))
     log(INFO, "app_fit: losses_centralized %s", str(hist.losses_centralized))

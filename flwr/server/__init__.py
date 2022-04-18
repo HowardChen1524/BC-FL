@@ -19,10 +19,13 @@ from .app import start_server as start_server
 from .client_manager import SimpleClientManager as SimpleClientManager
 from .history import History as History
 from .server import Server as Server
+from pathlib import Path
+FLTASK_ABI_PATH = f"{Path(__file__).parent.absolute()}/abi/fltask.json"
 
 __all__ = [
     "start_server",
     "SimpleClientManager",
     "History",
     "Server",
+    "FLTASK_ABI_PATH"
 ]

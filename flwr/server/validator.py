@@ -1,29 +1,29 @@
-# validator.py
 from typing import Dict, List, Optional, Tuple
 from flwr.server.strategy import FedAvg, Strategy
-from flwr.server.client_proxy import ClientProxy
 from flwr.common import (
     Weights,
     Scalar,
 )
-from flwr.common import parameter
 
 from web3 import Web3
 import time
+import json
+from flwr.server import FLTASK_ABI_PATH
 
 class Validator:
-    def __init__(self, account: str, private_key: str, provider_url: str, contract_address: str, abi: Dict, strategy: Optional[Strategy] = None) -> None:
+    def __init__(self, account: str, private_key: str, provider_url: str, contract_address: str, strategy: Optional[Strategy] = None) -> None:
         self.account = account
         self.private_key = private_key
         self.w3 = Web3(Web3.HTTPProvider(provider_url))
         self.contract_address = contract_address
+        # read abi from static folder
+        with open(FLTASK_ABI_PATH) as f:
+            json_dict = json.load(f)
+            assert 'abi' in json_dict
+            abi = json_dict['abi']
         self.contract = self.w3.eth.contract(address=contract_address, abi=abi)
         self.strategy: Strategy = strategy if strategy is not None else FedAvg()
-    
-    def set_strategy(self, strategy: Strategy) -> None:
-        """Replace server strategy."""
-        self.strategy = strategy
-
+        
     # send transaction
     def set_client_weights(self, encode_weights: str) -> None:
         nonce = self.w3.eth.get_transaction_count(self.contract_address)
